@@ -1,18 +1,24 @@
-Two-Stage Unsupervised Low-Light Image Enhancement
+# Two-Stage Unsupervised Low-Light Image Enhancement
 
-PyTorch implementation of "A Two-stage Unsupervised Approach for Low Light Image Enhancement"
-Hu et al., 2020 — arXiv:2010.09316
+> PyTorch implementation of **"A Two-stage Unsupervised Approach for Low Light Image Enhancement"**  
+> Hu et al., 2020 — [arXiv:2010.09316](https://arxiv.org/abs/2010.09316)
 
+---
 
-Overview
+## Overview
+
 This project implements a two-stage unsupervised pipeline for enhancing low-light images without requiring paired training data. The approach decomposes the problem into:
 
-Stage 1 – Pre-enhancement: Adaptive tone mapping based on Retinex theory (Equations 2–4 from the paper)
-Stage 2 – Post-refinement: A U-Net style refinement network trained with adversarial loss (Equations 5–9)
+1. **Stage 1 – Pre-enhancement**: Adaptive tone mapping based on Retinex theory (Equations 2–4 from the paper)
+2. **Stage 2 – Post-refinement**: A U-Net style refinement network trained with adversarial loss (Equations 5–9)
 
 The method addresses three key challenges in low-light enhancement: the need for paired training images, poor performance on extremely dark inputs, and noise amplification.
 
-Architecture
+---
+
+## Architecture
+
+```
 Low-light image
       │
       ▼
@@ -30,21 +36,59 @@ Low-light image
 └─────────────────────┘
       │
       ▼ Refined image
-Refinement Network (Table I — Exact)
-LayerInput → OutputSpatial SizeIn ChOut Chconv1Y′ → x1128×128332conv2x1 → x2128×1283232down1x2 → x364×643232down2x3 → x432×323264down3x4 → x516×1664128down4x5 → x68×8128256conv3x6 → x78×8256512conv4x7 → x88×8512512up1x8 → x916×16512256fusion1[x9, x5] → x1016×16384256up2x10 → x1132×32256128fusion2[x11, x4] → x1232×32192128up3x12 → x1364×6412864fusion3[x13, x3] → x1464×649664up4x14 → x15128×1286432fusion4[x15, x2] → x16128×1286432conv5x16 → Y128×128323
-Loss Function (Eq. 9)
+```
+
+### Refinement Network (Table I — Exact)
+
+| Layer    | Input → Output     | Spatial Size | In Ch | Out Ch |
+|----------|--------------------|--------------|-------|--------|
+| conv1    | Y′ → x1            | 128×128      | 3     | 32     |
+| conv2    | x1 → x2            | 128×128      | 32    | 32     |
+| down1    | x2 → x3            | 64×64        | 32    | 32     |
+| down2    | x3 → x4            | 32×32        | 32    | 64     |
+| down3    | x4 → x5            | 16×16        | 64    | 128    |
+| down4    | x5 → x6            | 8×8          | 128   | 256    |
+| conv3    | x6 → x7            | 8×8          | 256   | 512    |
+| conv4    | x7 → x8            | 8×8          | 512   | 512    |
+| up1      | x8 → x9            | 16×16        | 512   | 256    |
+| fusion1  | [x9, x5] → x10     | 16×16        | 384   | 256    |
+| up2      | x10 → x11          | 32×32        | 256   | 128    |
+| fusion2  | [x11, x4] → x12    | 32×32        | 192   | 128    |
+| up3      | x12 → x13          | 64×64        | 128   | 64     |
+| fusion3  | [x13, x3] → x14    | 64×64        | 96    | 64     |
+| up4      | x14 → x15          | 128×128      | 64    | 32     |
+| fusion4  | [x15, x2] → x16    | 128×128      | 64    | 32     |
+| conv5    | x16 → Y            | 128×128      | 32    | 3      |
+
+### Loss Function (Eq. 9)
+
+```
 L = l_rec + λ·l_per + µ·l_tv + β·l_adv
-TermDescriptionWeightl_recL1 reconstruction loss (Eq. 5)1.0l_perVGG16 perceptual loss (Eq. 6)λ = 1.0l_tvTotal variation loss (Eq. 7)µ = 0.1l_advRelativistic adversarial loss (Eq. 8)β = 1.0
+```
 
-Dataset
-This implementation uses the LOL (Low-Light) dataset:
+| Term   | Description                          | Weight |
+|--------|--------------------------------------|--------|
+| l_rec  | L1 reconstruction loss (Eq. 5)       | 1.0    |
+| l_per  | VGG16 perceptual loss (Eq. 6)        | λ = 1.0|
+| l_tv   | Total variation loss (Eq. 7)         | µ = 0.1|
+| l_adv  | Relativistic adversarial loss (Eq. 8)| β = 1.0|
 
-Training set (our485): 485 paired low/high-light images
-Test set (eval15): 15 paired low/high-light images
+---
+
+## Dataset
+
+This implementation uses the **LOL (Low-Light) dataset**:
+
+- **Training set (our485):** 485 paired low/high-light images
+- **Test set (eval15):** 15 paired low/high-light images
 
 The dataset is downloaded automatically from Google Drive during setup. It follows the unpaired training paradigm — low-light images (trainA) and normal-light images (trainB) are used without explicit correspondence during GAN training.
 
-Requirements
+---
+
+## Requirements
+
+```
 Python >= 3.8
 torch >= 2.0
 torchvision
@@ -54,34 +98,84 @@ matplotlib
 scikit-image
 gdown
 tqdm
+```
+
 Install all dependencies:
-bashpip install torch torchvision pillow numpy matplotlib scikit-image gdown tqdm
 
-Usage
-On Kaggle / Colab (GPU recommended)
-Open and run notebook402bb36b62.ipynb end-to-end. The notebook:
+```bash
+pip install torch torchvision pillow numpy matplotlib scikit-image gdown tqdm
+```
 
-Installs dependencies
-Downloads and organizes the LOL dataset
-Defines all models (AdaptiveToneMapping, RefinementNet, Discriminator, losses)
-Trains for 1000 epochs
-Evaluates and displays visual results
+---
 
-Training Configuration
-HyperparameterValueOptimizerAdamLearning rate0.0001β1, β20.9, 0.999Weight decay0.0001Batch size64Patch size128 × 128Epochs1000GPU usedNVIDIA Tesla T4
+## Usage
 
-Results
-Quantitative Results on LOL (Unpaired Dataset)
-MethodPSNR ↑SSIM ↑NIQE ↓Input (low-light)10.3700.2755.299EnlightenGAN17.3140.7114.591Pre-enhancement only17.3370.6987.012Ours (Two-stage)18.0640.7204.474
-Benchmark Datasets (NIQE ↓, lower is better)
-MethodMEFLIMENPERetinexNet4.1494.4204.485LIME3.7204.1554.268EnlightenGAN3.2323.7194.113KinD3.3433.7243.883Ours3.0273.5993.014
+### On Kaggle / Colab (GPU recommended)
 
-Graphical Results & Visualization
-Run visualize_results.ipynb (included in this repo) to reproduce all figures from the paper:
-FigureDescriptionFig. 1 styleSide-by-side: Input → Pre-enhanced → Refined → Ground truthFig. 3 styleNoise suppression comparison across stagesTraining curvesGenerator and Discriminator loss over epochsMetrics bar chartPSNR / SSIM / NIQE comparison across methodsNIQE benchmark radarMulti-dataset comparison radar chart
-See visualize_results.ipynb for detailed plotting code.
+Open and run `notebook402bb36b62.ipynb` end-to-end. The notebook:
+1. Installs dependencies
+2. Downloads and organizes the LOL dataset
+3. Defines all models (AdaptiveToneMapping, RefinementNet, Discriminator, losses)
+4. Trains for 1000 epochs
+5. Evaluates and displays visual results
 
-Project Structure
+### Training Configuration
+
+| Hyperparameter | Value          |
+|----------------|----------------|
+| Optimizer      | Adam           |
+| Learning rate  | 0.0001         |
+| β1, β2         | 0.9, 0.999     |
+| Weight decay   | 0.0001         |
+| Batch size     | 64             |
+| Patch size     | 128 × 128      |
+| Epochs         | 1000           |
+| GPU used       | NVIDIA Tesla T4|
+
+---
+
+## Results
+
+### Quantitative Results on LOL (Unpaired Dataset)
+
+| Method              | PSNR ↑ | SSIM ↑ | NIQE ↓ |
+|---------------------|--------|--------|--------|
+| Input (low-light)   | 10.370 | 0.275  | 5.299  |
+| EnlightenGAN        | 17.314 | 0.711  | 4.591  |
+| Pre-enhancement only| 17.337 | 0.698  | 7.012  |
+| **Ours (Two-stage)**| **18.064** | **0.720** | **4.474** |
+
+### Benchmark Datasets (NIQE ↓, lower is better)
+
+| Method       | MEF   | LIME  | NPE   |
+|--------------|-------|-------|-------|
+| RetinexNet   | 4.149 | 4.420 | 4.485 |
+| LIME         | 3.720 | 4.155 | 4.268 |
+| EnlightenGAN | 3.232 | 3.719 | 4.113 |
+| KinD         | 3.343 | 3.724 | 3.883 |
+| **Ours**     | **3.027** | **3.599** | **3.014** |
+
+---
+
+## Graphical Results & Visualization
+
+Run `visualize_results.ipynb` (included in this repo) to reproduce all figures from the paper:
+
+| Figure | Description |
+|--------|-------------|
+| Fig. 1 style | Side-by-side: Input → Pre-enhanced → Refined → Ground truth |
+| Fig. 3 style | Noise suppression comparison across stages |
+| Training curves | Generator and Discriminator loss over epochs |
+| Metrics bar chart | PSNR / SSIM / NIQE comparison across methods |
+| NIQE benchmark radar | Multi-dataset comparison radar chart |
+
+See `visualize_results.ipynb` for detailed plotting code.
+
+---
+
+## Project Structure
+
+```
 .
 ├── notebook402bb36b62.ipynb    # Main training notebook (Kaggle)
 ├── visualize_results.ipynb     # Visualization & evaluation notebook
@@ -97,27 +191,36 @@ Project Structure
         ├── trainA/             # Symlinked low-light for GAN training
         ├── trainB/             # Symlinked normal-light for GAN training
         └── test/               # Test images
+```
 
-Implementation Notes
+---
 
-The Discriminator uses a relativistic structure (RaGAN) with InstanceNorm, matching Eq. (8)
-The DownBlock consists of two conv layers + MaxPool2d, matching the paper's description
-Skip connections (fusion layers) concatenate encoder and decoder features at 4 scales
-Training uses the unpaired paradigm: low-light images are pre-enhanced in Stage 1, then the GAN refines them using unpaired normal-light images as the real distribution
-The Stage 1 tone mapping is parameter-free and runs at test time with no training required
+## Implementation Notes
 
+- The **Discriminator** uses a relativistic structure (RaGAN) with InstanceNorm, matching Eq. (8)
+- The **DownBlock** consists of two conv layers + MaxPool2d, matching the paper's description
+- **Skip connections** (fusion layers) concatenate encoder and decoder features at 4 scales
+- Training uses the **unpaired paradigm**: low-light images are pre-enhanced in Stage 1, then the GAN refines them using unpaired normal-light images as the real distribution
+- The Stage 1 tone mapping is parameter-free and runs at test time with no training required
 
-Citation
-bibtex@article{hu2020twostage,
+---
+
+## Citation
+
+```bibtex
+@article{hu2020twostage,
   title={A Two-stage Unsupervised Approach for Low light Image Enhancement},
   author={Hu, Junjie and Guo, Xiyue and Chen, Junfeng and Liang, Guanqi and Deng, Fuqin and Lam, Tin Lun},
   journal={arXiv preprint arXiv:2010.09316},
   year={2020}
 }
+```
 
-Acknowledgements
+---
 
-LOL Dataset — Wei et al., BMVC 2018
-EnlightenGAN — used as baseline
-U-Net — Ronneberger et al., MICCAI 2015
-VGG16 perceptual features from torchvision
+## Acknowledgements
+
+- [LOL Dataset](https://daooshee.github.io/BMVC2018website/) — Wei et al., BMVC 2018
+- [EnlightenGAN](https://github.com/VITA-Group/EnlightenGAN) — used as baseline
+- [U-Net](https://arxiv.org/abs/1505.04597) — Ronneberger et al., MICCAI 2015
+- VGG16 perceptual features from [torchvision](https://pytorch.org/vision/stable/models.html)
