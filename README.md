@@ -177,7 +177,7 @@ See `visualize_results.ipynb` for detailed plotting code.
 
 ```
 .
-├── notebook402bb36b62.ipynb    # Main training notebook (Kaggle)
+├── implementation.ipynb    # Main training notebook (Kaggle)
 ├── visualize_results.ipynb     # Visualization & evaluation notebook
 ├── README.md
 └── data/                       # Auto-created by notebook
